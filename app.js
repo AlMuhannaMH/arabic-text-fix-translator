@@ -1,30 +1,23 @@
-// Advanced SAP Arabic Text Processor with Intelligent NLP
+// Advanced SAP Arabic Text Processor with Free Translation Services
 let uploadedFile = null;
 let processedWorkbook = null;
-let processingResults = [];
-let processingStats = {
+let currentProcessingMode = 'free';
+let customDictionary = new Map();
+let processingReport = {
     totalProcessed: 0,
-    apiCalls: 0,
+    successfulTranslations: 0,
     averageConfidence: 0,
-    startTime: null,
-    endTime: null
+    servicesUsed: [],
+    processingTime: 0
 };
 
-// Advanced Arabic processing data with comprehensive patterns
-const arabicProcessingEngine = {
-    prefixPatterns: ["ال", "و", "ف", "ب", "ل", "ك", "من", "إلى", "في", "على", "عن", "مع"],
-    suffixPatterns: ["ة", "ين", "ون", "ان", "ات", "ها", "هم", "كم", "نا", "تم", "كن"],
-    businessIndicators: ["شركة", "مؤسسة", "معهد", "مكتب", "دار", "بيت", "مركز", "جمعية"],
-    commonNames: ["محمد", "أحمد", "علي", "حسن", "عبدالله", "ابراهيم", "خالد", "سعد", "فهد"],
-    punctuationMarkers: ["(", ")", "/", "-", ":", ";", ",", "."],
-    numberPatterns: [/\d{2}:\d{2}/, /\d{4}-\d{2}-\d{2}/, /\d+\.\d+/],
-    
-    // Enhanced business dictionary
-    businessDictionary: {
+// Comprehensive Arabic processing data from application data
+const arabicProcessingData = {
+    businessTerms: {
         "شركة": "Company",
-        "مؤسسة": "Foundation/Institution",
-        "تجارة": "Trade/Commerce",
-        "أسواق": "Markets",
+        "مؤسسة": "Foundation",
+        "تجارة": "Trade",
+        "أسواق": "Markets", 
         "مخابز": "Bakeries",
         "تمويل": "Financing",
         "خدمات": "Services",
@@ -37,67 +30,81 @@ const arabicProcessingEngine = {
         "مقاولات": "Contracting",
         "صناعات": "Industries",
         "النقل": "Transportation",
-        "اللوجستية": "Logistics",
-        "معهد": "Institute",
-        "مختار": "Selected",
+        "اللوجستية": "Logistics"
+    },
+    commonNames: {
+        "محمد": "Mohammed",
+        "أحمد": "Ahmed", 
+        "علي": "Ali",
         "عبدالله": "Abdullah",
         "ابراهيم": "Ibrahim",
-        "محمد": "Mohammed",
-        "علي": "Ali",
-        "تجاري": "Commercial",
-        "تجارية": "Commercial",
-        "للتجارة": "for Trade",
-        "للمواد": "for Materials",
-        "والصيانة": "and Maintenance",
-        "مؤسسةأسواقومخابز": "Markets and Bakeries Institution",
-        "دارسلتيللتجا": "Dar Selti Trading",
-        "شروقالبيضاء": "Shoroq Al Baydaa"
+        "خالد": "Khalid",
+        "سعد": "Saad",
+        "فهد": "Fahad"
+    },
+    locations: {
+        "الرياض": "Riyadh",
+        "جدة": "Jeddah",
+        "مكة": "Mecca",
+        "المدينة": "Medina",
+        "الدمام": "Dammam"
+    },
+    morphologicalRules: {
+        prefixes: ["ال", "و", "ف", "ب", "ل", "ك", "من", "إلى", "في"],
+        suffixes: ["ة", "ين", "ون", "ان", "ات", "ها", "هم", "كم"],
+        companyIndicators: ["شركة", "مؤسسة", "معهد", "مكتب"],
+        patterns: {
+            "شركةأسواقومخابز": "شركة أسواق ومخابز",
+            "مؤسسةدارسلتيللتجا": "مؤسسة دار سلتي للتجارة",
+            "تمويناتوتينمدىللم": "تمويلات وتين مدى للمواد",
+            "طارقعبداللهابراهيم": "طارق عبدالله ابراهيم"
+        }
     }
 };
 
-// Translation API configuration
-const translationAPI = {
-    google: {
-        endpoint: 'https://translation.googleapis.com/language/translate/v2',
-        rateLimit: 100,
-        batchSize: 50
+// Free translation services configuration
+const translationServices = {
+    libretranslate: {
+        name: "LibreTranslate",
+        endpoint: "https://libretranslate.com/translate",
+        active: true,
+        priority: 1
     },
-    apiKey: null,
-    requestCount: 0
-};
-
-// Confidence scoring system
-const confidenceThresholds = {
-    high: 0.9,
-    medium: 0.7,
-    low: 0.5
+    mymemory: {
+        name: "MyMemory",
+        endpoint: "https://api.mymemory.translated.net/get",
+        active: true,
+        priority: 2
+    }
 };
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    initializeApplication();
+    initializeApp();
 });
 
-function initializeApplication() {
+function initializeApp() {
     initializeFileUpload();
-    initializeModeSelection();
-    initializeAPIConfiguration();
-    setupEventListeners();
+    initializeProcessingModes();
+    initializeDictionary();
+    checkServiceStatus();
+    loadCustomTerms();
+    updateDictionaryStats();
+    
+    // Fix: Ensure process button starts disabled
+    const processBtn = document.getElementById('processBtn');
+    processBtn.disabled = true;
 }
 
 function initializeFileUpload() {
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
 
-    // Handle drag and drop
     uploadArea.addEventListener('dragover', handleDragOver);
     uploadArea.addEventListener('dragleave', handleDragLeave);
     uploadArea.addEventListener('drop', handleDrop);
-    
-    // Handle file input change
     fileInput.addEventListener('change', handleFileSelect);
     
-    // Handle upload area click
     uploadArea.addEventListener('click', function(e) {
         if (e.target !== fileInput) {
             fileInput.click();
@@ -105,26 +112,150 @@ function initializeFileUpload() {
     });
 }
 
-function initializeModeSelection() {
-    const modeOptions = document.querySelectorAll('input[name="processing-mode"]');
-    modeOptions.forEach(option => {
-        option.addEventListener('change', handleModeChange);
+function initializeProcessingModes() {
+    const modeCards = document.querySelectorAll('.mode-card');
+    modeCards.forEach(card => {
+        card.addEventListener('click', function() {
+            selectProcessingMode(this.dataset.mode);
+        });
     });
 }
 
-function initializeAPIConfiguration() {
-    const apiKeyInput = document.getElementById('google-api-key');
-    apiKeyInput.addEventListener('input', handleAPIKeyChange);
+function selectProcessingMode(mode) {
+    currentProcessingMode = mode;
+    
+    // Update UI
+    document.querySelectorAll('.mode-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+    
+    // Show/hide services section based on mode
+    const servicesSection = document.getElementById('servicesSection');
+    servicesSection.style.display = mode === 'offline' ? 'none' : 'block';
 }
 
-function setupEventListeners() {
-    // Confidence filter for preview
-    const confidenceFilter = document.getElementById('confidenceFilter');
-    if (confidenceFilter) {
-        confidenceFilter.addEventListener('change', filterPreviewResults);
+function initializeDictionary() {
+    // Load default dictionary
+    Object.entries(arabicProcessingData.businessTerms).forEach(([arabic, english]) => {
+        customDictionary.set(arabic, english);
+    });
+    Object.entries(arabicProcessingData.commonNames).forEach(([arabic, english]) => {
+        customDictionary.set(arabic, english);
+    });
+    Object.entries(arabicProcessingData.locations).forEach(([arabic, english]) => {
+        customDictionary.set(arabic, english);
+    });
+}
+
+async function checkServiceStatus() {
+    // Check LibreTranslate
+    try {
+        const response = await fetch('https://libretranslate.com/languages', { 
+            method: 'GET',
+            timeout: 5000 
+        });
+        if (response.ok) {
+            document.getElementById('libretranslate-status').className = 'service-status online';
+        } else {
+            document.getElementById('libretranslate-status').className = 'service-status offline';
+            translationServices.libretranslate.active = false;
+        }
+    } catch (error) {
+        document.getElementById('libretranslate-status').className = 'service-status offline';
+        translationServices.libretranslate.active = false;
+    }
+
+    // Check MyMemory
+    try {
+        const response = await fetch('https://api.mymemory.translated.net/get?q=test&langpair=ar|en', {
+            timeout: 5000
+        });
+        if (response.ok) {
+            document.getElementById('mymemory-status').className = 'service-status online';
+        } else {
+            document.getElementById('mymemory-status').className = 'service-status offline';
+            translationServices.mymemory.active = false;
+        }
+    } catch (error) {
+        document.getElementById('mymemory-status').className = 'service-status offline';
+        translationServices.mymemory.active = false;
     }
 }
 
+function toggleDictionary() {
+    const content = document.getElementById('dictionaryContent');
+    const toggleText = document.getElementById('dictionaryToggleText');
+    
+    if (content.style.display === 'none' || content.style.display === '') {
+        content.style.display = 'block';
+        toggleText.textContent = 'Hide Dictionary';
+        loadCustomTerms();
+    } else {
+        content.style.display = 'none';
+        toggleText.textContent = 'Show Dictionary';
+    }
+}
+
+function loadCustomTerms() {
+    const customTermsList = document.getElementById('customTermsList');
+    customTermsList.innerHTML = '';
+    
+    let customCount = 0;
+    const displayTerms = Array.from(customDictionary.entries()).slice(0, 5);
+    
+    displayTerms.forEach(([arabic, english]) => {
+        const termItem = document.createElement('div');
+        termItem.className = 'term-item';
+        termItem.innerHTML = `
+            <span class="term-arabic">${arabic}</span>
+            <span class="term-english">${english}</span>
+        `;
+        customTermsList.appendChild(termItem);
+        customCount++;
+    });
+    
+    if (customCount === 0) {
+        const emptyMessage = document.createElement('div');
+        emptyMessage.style.textAlign = 'center';
+        emptyMessage.style.color = 'var(--color-text-secondary)';
+        emptyMessage.style.padding = 'var(--space-16)';
+        emptyMessage.textContent = 'No custom terms added yet';
+        customTermsList.appendChild(emptyMessage);
+    }
+}
+
+function updateDictionaryStats() {
+    const businessCount = Object.keys(arabicProcessingData.businessTerms).length;
+    const namesCount = Object.keys(arabicProcessingData.commonNames).length;
+    const locationsCount = Object.keys(arabicProcessingData.locations).length;
+    
+    document.getElementById('businessTermsCount').textContent = businessCount;
+    document.getElementById('namesCount').textContent = namesCount;
+    document.getElementById('locationsCount').textContent = locationsCount;
+}
+
+function addCustomTerm() {
+    const arabicTerm = document.getElementById('arabicTerm').value.trim();
+    const englishTerm = document.getElementById('englishTerm').value.trim();
+    
+    if (!arabicTerm || !englishTerm) {
+        showError('Please enter both Arabic and English terms');
+        return;
+    }
+    
+    customDictionary.set(arabicTerm, englishTerm);
+    document.getElementById('arabicTerm').value = '';
+    document.getElementById('englishTerm').value = '';
+    
+    loadCustomTerms();
+    showSuccess('Custom term added successfully');
+    
+    // Update statistics
+    updateDictionaryStats();
+}
+
+// File handling functions
 function handleDragOver(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -161,11 +292,11 @@ function handleFile(file) {
     }
     
     uploadedFile = file;
-    analyzeFile(file);
     displayFileInfo(file);
+    
+    // Fix: Enable process button only after successful file upload
     document.getElementById('processBtn').disabled = false;
     
-    // Add success animation
     document.getElementById('uploadArea').classList.add('upload-success');
     setTimeout(() => {
         document.getElementById('uploadArea').classList.remove('upload-success');
@@ -175,7 +306,7 @@ function handleFile(file) {
 function validateFile(file) {
     const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
                        'application/vnd.ms-excel'];
-    const maxSize = 50 * 1024 * 1024; // 50MB for large files
+    const maxSize = 10 * 1024 * 1024; // 10MB
     
     if (!validTypes.includes(file.type)) {
         showError('Please upload a valid Excel file (.xlsx or .xls)');
@@ -183,42 +314,11 @@ function validateFile(file) {
     }
     
     if (file.size > maxSize) {
-        showError('File size must be less than 50MB');
+        showError('File size must be less than 10MB');
         return false;
     }
     
     return true;
-}
-
-function analyzeFile(file) {
-    // Simulate file complexity analysis
-    const complexity = Math.random() > 0.5 ? 'high' : 'medium';
-    const estimatedRows = Math.floor(Math.random() * 300) + 100;
-    
-    setTimeout(() => {
-        const analysisText = `Estimated ${estimatedRows} rows, ${complexity} complexity detected`;
-        document.getElementById('fileAnalysis').textContent = analysisText;
-        
-        // Show recommendation based on analysis
-        showProcessingRecommendation(complexity, estimatedRows);
-    }, 500);
-}
-
-function showProcessingRecommendation(complexity, rows) {
-    const recommendation = document.getElementById('recommendation');
-    const recommendationText = document.getElementById('recommendationText');
-    
-    let message = '';
-    if (complexity === 'high' && rows > 200) {
-        message = 'Hybrid Mode recommended for best accuracy with complex text patterns.';
-    } else if (rows > 150) {
-        message = 'Smart Mode recommended for good balance of speed and accuracy.';
-    } else {
-        message = 'Quick Mode sufficient for this file size and complexity.';
-    }
-    
-    recommendationText.textContent = message;
-    recommendation.style.display = 'flex';
 }
 
 function displayFileInfo(file) {
@@ -236,75 +336,37 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function handleModeChange(e) {
-    const mode = e.target.value;
-    updateUIForMode(mode);
-}
-
-function updateUIForMode(mode) {
-    const apiSection = document.querySelector('.api-config-section');
-    
-    if (mode === 'smart' || mode === 'hybrid') {
-        apiSection.style.opacity = '1';
-        apiSection.style.pointerEvents = 'auto';
-    } else {
-        apiSection.style.opacity = '0.6';
-        apiSection.style.pointerEvents = 'none';
-    }
-}
-
-function handleAPIKeyChange(e) {
-    translationAPI.apiKey = e.target.value.trim();
-    updateAPIStatus();
-}
-
-function updateAPIStatus() {
-    // This would normally validate the API key
-    // For demo purposes, we'll simulate API availability
-    const hasKey = translationAPI.apiKey && translationAPI.apiKey.length > 0;
-    
-    // Update UI to show API status if needed
-    console.log('API Key status:', hasKey ? 'Available' : 'Not configured');
-}
-
 function clearFile() {
     uploadedFile = null;
-    processingResults = [];
     document.getElementById('uploadArea').style.display = 'block';
     document.getElementById('fileInfo').style.display = 'none';
     document.getElementById('fileInput').value = '';
-    document.getElementById('processBtn').disabled = true;
-    document.getElementById('downloadSection').style.display = 'none';
-    document.getElementById('previewSection').style.display = 'none';
-    document.getElementById('processStatus').style.display = 'none';
-    document.getElementById('recommendation').style.display = 'none';
     
-    // Reset stats
-    processingStats = {
-        totalProcessed: 0,
-        apiCalls: 0,
-        averageConfidence: 0,
-        startTime: null,
-        endTime: null
-    };
+    // Fix: Disable process button when file is cleared
+    document.getElementById('processBtn').disabled = true;
+    
+    document.getElementById('downloadSection').style.display = 'none';
+    document.getElementById('reviewSection').style.display = 'none';
+    document.getElementById('processStatus').style.display = 'none';
 }
 
-function processFile() {
+// Main processing function
+async function processFile() {
     if (!uploadedFile) {
         showError('Please upload a file first');
         return;
     }
     
-    const selectedMode = document.querySelector('input[name="processing-mode"]:checked').value;
-    const batchSize = parseInt(document.getElementById('batch-size').value);
-    const confidenceThreshold = parseFloat(document.getElementById('confidence-threshold').value);
+    const startTime = Date.now();
+    processingReport = {
+        totalProcessed: 0,
+        successfulTranslations: 0,
+        averageConfidence: 0,
+        servicesUsed: [],
+        processingTime: 0
+    };
     
-    processingStats.startTime = Date.now();
-    processingStats.totalProcessed = 0;
-    processingStats.apiCalls = 0;
-    processingResults = [];
-    
-    showProcessingStatus('Initializing processing engine...', 0);
+    showProcessingStatus('Reading Excel file...', 10);
     
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -312,8 +374,10 @@ function processFile() {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             
-            showProcessingStatus('Analyzing text complexity...', 10);
-            setTimeout(() => processWorkbook(workbook, selectedMode, batchSize, confidenceThreshold), 200);
+            showProcessingStatus('Initializing Arabic processing engine...', 20);
+            setTimeout(async () => {
+                await processWorkbook(workbook, startTime);
+            }, 100);
             
         } catch (error) {
             showError('Error reading Excel file: ' + error.message);
@@ -329,91 +393,84 @@ function processFile() {
     reader.readAsArrayBuffer(uploadedFile);
 }
 
-async function processWorkbook(workbook, mode, batchSize, confidenceThreshold) {
+async function processWorkbook(workbook, startTime) {
     try {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
-        showProcessingStatus('Extracting text from column M...', 20);
-        updateProcessDetails(0, 0, 0, '0s');
+        showProcessingStatus('Analyzing Arabic text patterns...', 30);
         
-        // Extract texts from column M (rows 2-400)
-        const textsToProcess = [];
+        const totalRows = 399; // rows 2-400
+        const sampleResults = [];
+        let confidenceSum = 0;
+        
         for (let row = 2; row <= 400; row++) {
             const cellRef = `M${row}`;
             const cell = worksheet[cellRef];
             
             if (cell && cell.v && typeof cell.v === 'string') {
-                const originalText = cell.v.toString().trim();
-                if (originalText) {
-                    textsToProcess.push({
-                        row: row,
-                        originalText: originalText
+                const originalText = cell.v.toString();
+                
+                // Advanced Arabic text processing
+                const { correctedArabic, confidence } = await processArabicText(originalText);
+                
+                // Get translation based on selected mode
+                const { translation, serviceUsed } = await getTranslation(correctedArabic);
+                
+                // Add to worksheet
+                worksheet[`AC${row}`] = { v: correctedArabic, t: 's' };
+                worksheet[`AD${row}`] = { v: translation, t: 's' };
+                
+                // Update statistics
+                processingReport.totalProcessed++;
+                if (translation && translation !== 'Arabic text') {
+                    processingReport.successfulTranslations++;
+                }
+                confidenceSum += confidence;
+                
+                if (serviceUsed && !processingReport.servicesUsed.includes(serviceUsed)) {
+                    processingReport.servicesUsed.push(serviceUsed);
+                }
+                
+                // Collect sample for preview (first 5 results)
+                if (sampleResults.length < 5 && originalText.trim().length > 0) {
+                    sampleResults.push({
+                        original: originalText,
+                        corrected: correctedArabic,
+                        translation: translation,
+                        confidence: confidence
                     });
                 }
             }
-        }
-        
-        showProcessingStatus('Processing Arabic text with ' + mode + ' mode...', 30);
-        
-        // Process in batches
-        const totalItems = textsToProcess.length;
-        let processedCount = 0;
-        let highConfidenceCount = 0;
-        let apiCallCount = 0;
-        
-        for (let i = 0; i < totalItems; i += batchSize) {
-            const batch = textsToProcess.slice(i, i + batchSize);
-            const batchResults = await processBatch(batch, mode);
-            
-            // Add results and update worksheet
-            for (const result of batchResults) {
-                processingResults.push(result);
-                
-                // Add to worksheet
-                worksheet[`AC${result.row}`] = { v: result.correctedArabic, t: 's' };
-                worksheet[`AD${result.row}`] = { v: result.englishTranslation, t: 's' };
-                
-                if (result.confidence >= confidenceThresholds.high) {
-                    highConfidenceCount++;
-                }
-                
-                if (result.usedAPI) {
-                    apiCallCount++;
-                }
-                
-                processedCount++;
-            }
             
             // Update progress
-            const progress = 30 + (processedCount / totalItems) * 60;
-            showProcessingStatus(`Processing batch ${Math.floor(i/batchSize) + 1}...`, progress);
-            
-            const remainingTime = estimateRemainingTime(processedCount, totalItems, processingStats.startTime);
-            updateProcessDetails(processedCount, highConfidenceCount, apiCallCount, remainingTime);
-            
-            // Small delay to show progress
-            await new Promise(resolve => setTimeout(resolve, 50));
+            if (row % 20 === 0) {
+                const progress = 30 + ((row - 2) / totalRows) * 50;
+                showProcessingStatus(`Processing row ${row}... (${currentProcessingMode} mode)`, progress);
+                updateConfidence(Math.round(confidenceSum / processingReport.totalProcessed));
+            }
         }
         
-        // Update worksheet range to include new columns
+        // Finalize processing
+        processingReport.averageConfidence = Math.round(confidenceSum / processingReport.totalProcessed);
+        processingReport.processingTime = Date.now() - startTime;
+        
+        // Update worksheet range
         const range = XLSX.utils.decode_range(worksheet['!ref']);
-        if (range.e.c < 29) { // AD = 29
+        if (range.e.c < 29) {
             range.e.c = 29;
             worksheet['!ref'] = XLSX.utils.encode_range(range);
         }
         
-        processingStats.endTime = Date.now();
-        processingStats.totalProcessed = processedCount;
-        processingStats.apiCalls = apiCallCount;
-        processingStats.averageConfidence = calculateAverageConfidence();
-        
         processedWorkbook = workbook;
         
-        showProcessingStatus('Finalizing results...', 95);
+        showProcessingStatus('Generating results...', 90);
+        
         setTimeout(() => {
-            showProcessingStatus('Processing complete!', 100);
-            showPreviewSection();
+            showProcessingStatus('Complete!', 100);
+            displayResults(sampleResults);
+            document.getElementById('downloadSection').style.display = 'block';
+            document.getElementById('reviewSection').style.display = 'block';
             hideProcessingStatus();
         }, 500);
         
@@ -423,395 +480,223 @@ async function processWorkbook(workbook, mode, batchSize, confidenceThreshold) {
     }
 }
 
-async function processBatch(batch, mode) {
-    const results = [];
-    
-    for (const item of batch) {
-        const result = await processText(item.originalText, item.row, mode);
-        results.push(result);
+async function processArabicText(text) {
+    if (!text || typeof text !== 'string') {
+        return { correctedArabic: text, confidence: 0 };
     }
     
-    return results;
-}
-
-async function processText(originalText, row, mode) {
-    let correctedArabic = originalText;
-    let englishTranslation = '';
-    let confidence = 0.5;
-    let usedAPI = false;
+    let result = text;
+    let confidence = 70; // Base confidence for local processing
     
-    // Apply Arabic text correction based on mode
-    switch (mode) {
-        case 'quick':
-            correctedArabic = applyQuickCorrection(originalText);
-            englishTranslation = applyDictionaryTranslation(correctedArabic);
-            confidence = calculatePatternConfidence(correctedArabic);
-            break;
-            
-        case 'smart':
-            correctedArabic = applyAdvancedNLP(originalText);
-            englishTranslation = await translateWithAPI(correctedArabic);
-            usedAPI = !!englishTranslation;
-            if (!englishTranslation) {
-                englishTranslation = applyDictionaryTranslation(correctedArabic);
-            }
-            confidence = usedAPI ? 0.85 + Math.random() * 0.1 : calculatePatternConfidence(correctedArabic);
-            break;
-            
-        case 'hybrid':
-            correctedArabic = applyHybridCorrection(originalText);
-            const apiTranslation = await translateWithAPI(correctedArabic);
-            const dictTranslation = applyDictionaryTranslation(correctedArabic);
-            
-            if (apiTranslation) {
-                englishTranslation = apiTranslation;
-                usedAPI = true;
-                confidence = 0.9 + Math.random() * 0.09;
-            } else {
-                englishTranslation = dictTranslation;
-                confidence = calculateHybridConfidence(correctedArabic, dictTranslation);
-            }
-            break;
+    // Apply morphological patterns first (highest confidence)
+    for (const [pattern, replacement] of Object.entries(arabicProcessingData.morphologicalRules.patterns)) {
+        if (result.includes(pattern)) {
+            result = result.replace(new RegExp(pattern, 'g'), replacement);
+            confidence += 15;
+        }
     }
     
-    return {
-        row: row,
-        originalText: originalText,
-        correctedArabic: correctedArabic,
-        englishTranslation: englishTranslation || 'Arabic text',
-        confidence: Math.min(confidence, 0.99),
-        mode: mode,
-        usedAPI: usedAPI
-    };
-}
-
-function applyQuickCorrection(text) {
-    let result = text;
-    
-    // Apply basic spacing corrections
-    result = result.replace(/شركة(?=\S)/g, 'شركة ');
-    result = result.replace(/مؤسسة(?=\S)/g, 'مؤسسة ');
-    result = result.replace(/معهد(?=\S)/g, 'معهد ');
-    
-    // Clean up multiple spaces
-    result = result.replace(/\s+/g, ' ').trim();
-    
-    return result;
-}
-
-function applyAdvancedNLP(text) {
-    let result = text;
-    
-    // Advanced pattern recognition and spacing
-    const patterns = [
-        { pattern: /شركة(?=[\u0600-\u06FF])/g, replacement: 'شركة ' },
-        { pattern: /مؤسسة(?=[\u0600-\u06FF])/g, replacement: 'مؤسسة ' },
-        { pattern: /(?<=[\u0600-\u06FF])و(?=[\u0600-\u06FF])/g, replacement: ' و' },
-        { pattern: /(?<=[\u0600-\u06FF])ال(?=[\u0600-\u06FF])/g, replacement: ' ال' }
-    ];
-    
-    patterns.forEach(({ pattern, replacement }) => {
-        result = result.replace(pattern, replacement);
-    });
-    
-    // Apply morphological analysis
-    result = applyMorphologicalAnalysis(result);
-    
-    // Clean up
-    result = result.replace(/\s+/g, ' ').trim();
-    
-    return result;
-}
-
-function applyHybridCorrection(text) {
-    // Combine quick and advanced methods
-    let result = applyAdvancedNLP(text);
-    
-    // Additional hybrid-specific corrections
-    const hybridPatterns = {
-        'مؤسسةأسواقومخابز': 'مؤسسة أسواق ومخابز',
-        'دارسلتيللتجا': 'دار سلتي للتجارة',
-        'شروقالبيضاء': 'شروق البيضاء'
-    };
-    
-    for (const [pattern, replacement] of Object.entries(hybridPatterns)) {
-        result = result.replace(new RegExp(pattern, 'g'), replacement);
-    }
-    
-    return result;
-}
-
-function applyMorphologicalAnalysis(text) {
-    // Simulate morphological decomposition
-    let result = text;
-    
-    // Handle common prefixes and suffixes
-    arabicProcessingEngine.prefixPatterns.forEach(prefix => {
+    // Apply prefix/suffix spacing rules
+    arabicProcessingData.morphologicalRules.prefixes.forEach(prefix => {
         const regex = new RegExp(`(?<!^|\\s)${prefix}(?=\\S)`, 'g');
         result = result.replace(regex, ` ${prefix}`);
     });
     
-    arabicProcessingEngine.suffixPatterns.forEach(suffix => {
+    arabicProcessingData.morphologicalRules.suffixes.forEach(suffix => {
         const regex = new RegExp(`(?<=\\S)${suffix}(?!$|\\s)`, 'g');
         result = result.replace(regex, `${suffix} `);
     });
     
-    return result;
-}
-
-async function translateWithAPI(text) {
-    if (!translationAPI.apiKey) {
-        return null;
+    // Apply company indicators spacing
+    arabicProcessingData.morphologicalRules.companyIndicators.forEach(indicator => {
+        const regex = new RegExp(`${indicator}(?=\\S)`, 'g');
+        result = result.replace(regex, `${indicator} `);
+    });
+    
+    // Clean up multiple spaces
+    result = result.replace(/\s+/g, ' ').trim();
+    
+    // Statistical analysis for confidence adjustment
+    const hasKnownPatterns = arabicProcessingData.morphologicalRules.companyIndicators.some(indicator => 
+        result.includes(indicator)
+    );
+    
+    if (hasKnownPatterns) {
+        confidence += 10;
     }
     
-    // Simulate API call (in real implementation, this would make actual API calls)
-    // For demo purposes, we'll simulate some translations
-    const commonTranslations = {
-        'شركة': 'Company',
-        'مؤسسة': 'Institution',
-        'أسواق': 'Markets',
-        'مخابز': 'Bakeries',
-        'تجارة': 'Trade'
-    };
+    // Cap confidence at 95 for local processing
+    confidence = Math.min(confidence, 95);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+    return { correctedArabic: result, confidence };
+}
+
+async function getTranslation(arabicText) {
+    if (!arabicText || typeof arabicText !== 'string') {
+        return { translation: '', serviceUsed: null };
+    }
     
-    // Simulate translation success/failure
-    if (Math.random() > 0.2) { // 80% success rate
-        translationAPI.requestCount++;
-        
-        // Try to find a translation
-        for (const [arabic, english] of Object.entries(commonTranslations)) {
-            if (text.includes(arabic)) {
-                return text.split(' ').map(word => commonTranslations[word] || word).join(' ');
-            }
+    // Check custom dictionary first
+    if (customDictionary.has(arabicText)) {
+        return { translation: customDictionary.get(arabicText), serviceUsed: 'Local Dictionary' };
+    }
+    
+    // Check for partial matches in dictionary
+    for (const [arabic, english] of customDictionary.entries()) {
+        if (arabicText.includes(arabic)) {
+            const translation = arabicText.replace(new RegExp(arabic, 'g'), english);
+            return { translation, serviceUsed: 'Local Dictionary (Partial)' };
         }
-        
-        return `Translated: ${text}`;
     }
     
-    return null; // API failure
+    // Use selected processing mode
+    if (currentProcessingMode === 'offline') {
+        return getOfflineTranslation(arabicText);
+    } else if (currentProcessingMode === 'free') {
+        return await getFreeAPITranslation(arabicText);
+    } else { // hybrid
+        const offlineResult = getOfflineTranslation(arabicText);
+        if (offlineResult.translation === 'Arabic text') {
+            return await getFreeAPITranslation(arabicText);
+        }
+        return offlineResult;
+    }
 }
 
-function applyDictionaryTranslation(text) {
-    let translation = text;
+function getOfflineTranslation(arabicText) {
+    // Pattern-based translation for common business terms
+    let translation = arabicText;
+    let found = false;
     
-    // Apply dictionary translations
-    for (const [arabic, english] of Object.entries(arabicProcessingEngine.businessDictionary)) {
-        const regex = new RegExp(arabic, 'g');
-        translation = translation.replace(regex, english);
+    // Apply business term translations
+    for (const [arabic, english] of Object.entries(arabicProcessingData.businessTerms)) {
+        if (translation.includes(arabic)) {
+            translation = translation.replace(new RegExp(arabic, 'g'), english);
+            found = true;
+        }
     }
     
-    // If no translation occurred, provide generic description
-    if (translation === text) {
-        if (text.includes('شركة')) {
-            return 'Company (Arabic text)';
-        } else if (text.includes('مؤسسة')) {
-            return 'Institution (Arabic text)';
+    // Apply name translations
+    for (const [arabic, english] of Object.entries(arabicProcessingData.commonNames)) {
+        if (translation.includes(arabic)) {
+            translation = translation.replace(new RegExp(arabic, 'g'), english);
+            found = true;
+        }
+    }
+    
+    // Apply location translations
+    for (const [arabic, english] of Object.entries(arabicProcessingData.locations)) {
+        if (translation.includes(arabic)) {
+            translation = translation.replace(new RegExp(arabic, 'g'), english);
+            found = true;
+        }
+    }
+    
+    if (!found) {
+        if (arabicText.includes('شركة')) {
+            translation = 'Company (Arabic text)';
+        } else if (arabicText.includes('مؤسسة')) {
+            translation = 'Institution (Arabic text)';
         } else {
-            return 'Arabic business entity';
+            translation = 'Arabic text';
         }
     }
     
-    return translation;
+    return { translation, serviceUsed: 'Local Processing' };
 }
 
-function calculatePatternConfidence(text) {
-    let confidence = 0.5;
-    
-    // Increase confidence based on recognized patterns
-    if (arabicProcessingEngine.businessIndicators.some(indicator => text.includes(indicator))) {
-        confidence += 0.2;
+async function getFreeAPITranslation(arabicText) {
+    // Try LibreTranslate first
+    if (translationServices.libretranslate.active) {
+        try {
+            const response = await fetch('https://libretranslate.com/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    q: arabicText,
+                    source: 'ar',
+                    target: 'en'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.translatedText) {
+                    return { translation: data.translatedText, serviceUsed: 'LibreTranslate' };
+                }
+            }
+        } catch (error) {
+            console.log('LibreTranslate failed:', error);
+        }
     }
     
-    if (arabicProcessingEngine.commonNames.some(name => text.includes(name))) {
-        confidence += 0.1;
+    // Try MyMemory as fallback
+    if (translationServices.mymemory.active) {
+        try {
+            const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(arabicText)}&langpair=ar|en`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.responseData && data.responseData.translatedText) {
+                    return { translation: data.responseData.translatedText, serviceUsed: 'MyMemory' };
+                }
+            }
+        } catch (error) {
+            console.log('MyMemory failed:', error);
+        }
     }
     
-    // Decrease confidence for complex patterns
-    if (text.length > 50) {
-        confidence -= 0.1;
-    }
-    
-    return Math.max(0.3, Math.min(0.8, confidence));
+    // Fallback to offline translation
+    return getOfflineTranslation(arabicText);
 }
 
-function calculateHybridConfidence(arabicText, translation) {
-    let confidence = calculatePatternConfidence(arabicText);
-    
-    // Boost confidence for hybrid approach
-    confidence += 0.1;
-    
-    // Check if translation seems successful
-    if (translation !== arabicText && !translation.includes('Arabic text')) {
-        confidence += 0.15;
-    }
-    
-    return Math.min(0.95, confidence);
-}
-
-function calculateAverageConfidence() {
-    if (processingResults.length === 0) return 0;
-    
-    const sum = processingResults.reduce((acc, result) => acc + result.confidence, 0);
-    return sum / processingResults.length;
-}
-
-function estimateRemainingTime(processed, total, startTime) {
-    if (processed === 0) return '--';
-    
-    const elapsed = Date.now() - startTime;
-    const avgTimePerItem = elapsed / processed;
-    const remaining = (total - processed) * avgTimePerItem;
-    
-    return formatDuration(remaining);
-}
-
-function formatDuration(ms) {
-    const seconds = Math.floor(ms / 1000);
-    if (seconds < 60) return `${seconds}s`;
-    
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
-}
-
-function showProcessingStatus(message, progress) {
-    document.getElementById('processStatus').style.display = 'block';
-    document.getElementById('processDetails').style.display = 'block';
-    document.getElementById('spinner').style.display = 'block';
-    document.getElementById('statusText').textContent = message;
-    
-    if (progress !== undefined) {
-        document.getElementById('progressBar').style.display = 'block';
-        document.getElementById('progressFill').style.width = progress + '%';
-    }
-    
-    // Disable process button
-    const processBtn = document.getElementById('processBtn');
-    processBtn.disabled = true;
-    processBtn.classList.add('btn--loading');
-}
-
-function updateProcessDetails(processed, highConf, apiCalls, estimatedTime) {
-    document.getElementById('processedCount').textContent = processed;
-    document.getElementById('highConfidence').textContent = highConf;
-    document.getElementById('apiCalls').textContent = apiCalls;
-    document.getElementById('estimatedTime').textContent = estimatedTime;
-}
-
-function hideProcessingStatus() {
-    document.getElementById('processStatus').style.display = 'none';
-    document.getElementById('spinner').style.display = 'none';
-    document.getElementById('progressBar').style.display = 'none';
-    document.getElementById('processDetails').style.display = 'none';
-    
-    // Re-enable process button
-    const processBtn = document.getElementById('processBtn');
-    processBtn.disabled = false;
-    processBtn.classList.remove('btn--loading');
-}
-
-function showPreviewSection() {
-    const previewSection = document.getElementById('previewSection');
-    previewSection.style.display = 'block';
-    
-    // Update preview stats
-    document.getElementById('previewTotalProcessed').textContent = processingResults.length;
-    document.getElementById('previewAverageConfidence').textContent = 
-        Math.round(processingStats.averageConfidence * 100) + '%';
-    
-    // Generate preview table
-    generatePreviewTable();
-}
-
-function generatePreviewTable() {
-    const previewTable = document.getElementById('previewTable');
-    
-    // Create table header
-    let html = `
-        <div class="table-row table-header">
-            <div class="table-cell">Row</div>
-            <div class="table-cell">Corrected Arabic</div>
-            <div class="table-cell">English Translation</div>
-            <div class="table-cell">Confidence</div>
+function displayResults(sampleResults) {
+    // Update summary statistics
+    const summaryHTML = `
+        <div class="summary-item">
+            <span class="summary-number">${processingReport.totalProcessed}</span>
+            <span class="summary-label">Rows Processed</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-number">${processingReport.successfulTranslations}</span>
+            <span class="summary-label">Translated</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-number">${processingReport.averageConfidence}%</span>
+            <span class="summary-label">Avg Confidence</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-number">${Math.round(processingReport.processingTime / 1000)}s</span>
+            <span class="summary-label">Processing Time</span>
         </div>
     `;
+    document.getElementById('resultsSummary').innerHTML = summaryHTML;
     
-    // Add sample results (first 20)
-    const sampleResults = processingResults.slice(0, 20);
+    // Display sample results
+    let previewHTML = '<div class="preview-header">Sample Results</div>';
     
-    sampleResults.forEach(result => {
-        const confidenceClass = getConfidenceClass(result.confidence);
-        const confidencePercent = Math.round(result.confidence * 100);
-        
-        html += `
-            <div class="table-row" data-confidence="${confidenceClass}">
-                <div class="table-cell">${result.row}</div>
-                <div class="table-cell arabic">${result.correctedArabic}</div>
-                <div class="table-cell">${result.englishTranslation}</div>
-                <div class="table-cell">
-                    <span class="confidence-badge confidence-${confidenceClass}">${confidencePercent}%</span>
-                </div>
+    if (sampleResults.length > 0) {
+        previewHTML += `
+            <div class="preview-row">
+                <strong>Original</strong>
+                <strong>Corrected Arabic</strong>
+                <strong>English Translation</strong>
             </div>
-        `;
-    });
-    
-    if (processingResults.length > 20) {
-        html += `
-            <div class="table-row">
-                <div class="table-cell" style="grid-column: 1 / -1; text-align: center; color: var(--color-text-secondary);">
-                    ... and ${processingResults.length - 20} more results
+            ${sampleResults.map(result => `
+                <div class="preview-row">
+                    <div class="preview-original">${result.original}</div>
+                    <div class="preview-corrected">${result.corrected}</div>
+                    <div class="preview-translation">${result.translation}</div>
                 </div>
-            </div>
+            `).join('')}
         `;
+    } else {
+        previewHTML += '<div class="preview-row"><em>No text data found in column M</em></div>';
     }
     
-    previewTable.innerHTML = html;
-}
-
-function getConfidenceClass(confidence) {
-    if (confidence >= confidenceThresholds.high) return 'high';
-    if (confidence >= confidenceThresholds.medium) return 'medium';
-    return 'low';
-}
-
-function filterPreviewResults() {
-    const filter = document.getElementById('confidenceFilter').value;
-    const rows = document.querySelectorAll('.table-row:not(.table-header)');
-    
-    rows.forEach(row => {
-        const confidenceClass = row.dataset.confidence;
-        
-        if (filter === 'all' || filter === confidenceClass) {
-            row.style.display = 'grid';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-function editResults() {
-    showInfo('Results editing feature would allow manual corrections to individual entries.');
-}
-
-function proceedToDownload() {
-    document.getElementById('previewSection').style.display = 'none';
-    showDownloadSection();
-}
-
-function showDownloadSection() {
-    const downloadSection = document.getElementById('downloadSection');
-    downloadSection.style.display = 'block';
-    
-    // Update final stats
-    document.getElementById('finalProcessedCount').textContent = processingStats.totalProcessed;
-    document.getElementById('finalApiCalls').textContent = processingStats.apiCalls;
-    document.getElementById('finalAvgConfidence').textContent = 
-        Math.round(processingStats.averageConfidence * 100) + '%';
-    document.getElementById('finalProcessingTime').textContent = 
-        formatDuration(processingStats.endTime - processingStats.startTime);
+    document.getElementById('resultsPreview').innerHTML = previewHTML;
 }
 
 function downloadProcessedFile() {
@@ -826,11 +711,18 @@ function downloadProcessedFile() {
         
         const originalName = uploadedFile.name;
         const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-        const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
-        const newName = `${nameWithoutExt}_processed_${timestamp}.xlsx`;
+        const newName = `${nameWithoutExt}_processed_free.xlsx`;
         
-        downloadBlob(blob, newName);
-        showSuccess('Processed file downloaded successfully!');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = newName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showSuccess('File downloaded successfully!');
         
     } catch (error) {
         showError('Error downloading file: ' + error.message);
@@ -838,75 +730,103 @@ function downloadProcessedFile() {
 }
 
 function downloadReport() {
-    try {
-        const report = generateProcessingReport();
-        const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
-        
-        const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
-        const filename = `processing_report_${timestamp}.txt`;
-        
-        downloadBlob(blob, filename);
-        showSuccess('Processing report downloaded successfully!');
-        
-    } catch (error) {
-        showError('Error downloading report: ' + error.message);
-    }
-}
-
-function generateProcessingReport() {
-    const mode = document.querySelector('input[name="processing-mode"]:checked').value;
-    const processingTime = formatDuration(processingStats.endTime - processingStats.startTime);
+    const report = {
+        processingMode: currentProcessingMode,
+        timestamp: new Date().toISOString(),
+        statistics: processingReport,
+        servicesConfiguration: {
+            libretranslate: translationServices.libretranslate.active,
+            mymemory: translationServices.mymemory.active
+        },
+        customDictionarySize: customDictionary.size
+    };
     
-    const highConfidenceCount = processingResults.filter(r => r.confidence >= confidenceThresholds.high).length;
-    const mediumConfidenceCount = processingResults.filter(r => 
-        r.confidence >= confidenceThresholds.medium && r.confidence < confidenceThresholds.high).length;
-    const lowConfidenceCount = processingResults.filter(r => r.confidence < confidenceThresholds.medium).length;
-    
-    return `SAP Arabic Text Processing Report
-Generated: ${new Date().toLocaleString()}
+    const reportText = `# SAP Arabic Processing Report
 
-=== PROCESSING SUMMARY ===
-File: ${uploadedFile.name}
-Mode: ${mode.charAt(0).toUpperCase() + mode.slice(1)} Mode
-Total Items Processed: ${processingStats.totalProcessed}
-Processing Time: ${processingTime}
-API Calls Made: ${processingStats.apiCalls}
-Average Confidence: ${(processingStats.averageConfidence * 100).toFixed(1)}%
+## Processing Summary
+- **Mode**: ${currentProcessingMode.charAt(0).toUpperCase() + currentProcessingMode.slice(1)}
+- **Total Rows Processed**: ${processingReport.totalProcessed}
+- **Successful Translations**: ${processingReport.successfulTranslations}
+- **Average Confidence**: ${processingReport.averageConfidence}%
+- **Processing Time**: ${Math.round(processingReport.processingTime / 1000)} seconds
+- **Services Used**: ${processingReport.servicesUsed.join(', ')}
 
-=== CONFIDENCE BREAKDOWN ===
-High Confidence (≥90%): ${highConfidenceCount} items
-Medium Confidence (70-89%): ${mediumConfidenceCount} items
-Low Confidence (<70%): ${lowConfidenceCount} items
+## Translation Services Status
+- **LibreTranslate**: ${translationServices.libretranslate.active ? 'Active' : 'Inactive'}
+- **MyMemory**: ${translationServices.mymemory.active ? 'Active' : 'Inactive'}
 
-=== SAMPLE RESULTS ===
-${processingResults.slice(0, 10).map(result => 
-    `Row ${result.row}: "${result.originalText}" → "${result.correctedArabic}" | "${result.englishTranslation}" (${(result.confidence * 100).toFixed(1)}%)`
-).join('\n')}
+## Dictionary Statistics
+- **Custom Terms**: ${customDictionary.size}
+- **Business Terms**: ${Object.keys(arabicProcessingData.businessTerms).length}
+- **Names**: ${Object.keys(arabicProcessingData.commonNames).length}
+- **Locations**: ${Object.keys(arabicProcessingData.locations).length}
 
-=== PROCESSING DETAILS ===
-Source Column: M
-Output Columns: AC (Arabic), AD (English)
-Processing Range: Rows 2-400
-Batch Size: ${document.getElementById('batch-size').value}
-Confidence Threshold: ${document.getElementById('confidence-threshold').value}
-
-This report was generated by the Advanced SAP Arabic Text Processor.
+Generated on: ${new Date().toLocaleString()}
 `;
-}
-
-function downloadBlob(blob, filename) {
+    
+    const blob = new Blob([reportText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    a.download = `processing_report_${Date.now()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
 
+// UI helper functions
+function showProcessingStatus(message, progress) {
+    document.getElementById('processStatus').style.display = 'block';
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('statusText').textContent = message;
+    
+    if (progress !== undefined) {
+        document.getElementById('progressBar').style.display = 'block';
+        document.getElementById('progressFill').style.width = progress + '%';
+        document.getElementById('progressDetails').textContent = `${progress}% complete`;
+    }
+    
+    const processBtn = document.getElementById('processBtn');
+    processBtn.disabled = true;
+    processBtn.classList.add('btn--loading');
+}
+
+function updateConfidence(confidence) {
+    const confidenceIndicator = document.getElementById('confidenceIndicator');
+    const confidenceValue = document.getElementById('confidenceValue');
+    
+    confidenceIndicator.style.display = 'flex';
+    confidenceValue.textContent = `${confidence}%`;
+    
+    // Update color based on confidence level
+    if (confidence >= 80) {
+        confidenceValue.style.color = 'var(--color-success)';
+    } else if (confidence >= 60) {
+        confidenceValue.style.color = 'var(--color-warning)';
+    } else {
+        confidenceValue.style.color = 'var(--color-error)';
+    }
+}
+
+function hideProcessingStatus() {
+    setTimeout(() => {
+        document.getElementById('processStatus').style.display = 'none';
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('progressBar').style.display = 'none';
+        document.getElementById('confidenceIndicator').style.display = 'none';
+        
+        const processBtn = document.getElementById('processBtn');
+        processBtn.disabled = uploadedFile === null;
+        processBtn.classList.remove('btn--loading');
+    }, 1000);
+}
+
 function showError(message) {
-    removeMessage('error-message');
+    const existingError = document.querySelector('.error-message');
+    if (existingError) {
+        existingError.remove();
+    }
     
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
@@ -915,11 +835,18 @@ function showError(message) {
     const processSection = document.querySelector('.process-section');
     processSection.appendChild(errorDiv);
     
-    setTimeout(() => removeMessage('error-message'), 5000);
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.remove();
+        }
+    }, 5000);
 }
 
 function showSuccess(message) {
-    removeMessage('success-message');
+    const existingSuccess = document.querySelector('.success-message');
+    if (existingSuccess) {
+        existingSuccess.remove();
+    }
     
     const successDiv = document.createElement('div');
     successDiv.className = 'success-message';
@@ -928,25 +855,9 @@ function showSuccess(message) {
     const downloadSection = document.getElementById('downloadSection');
     downloadSection.appendChild(successDiv);
     
-    setTimeout(() => removeMessage('success-message'), 3000);
-}
-
-function showInfo(message) {
-    removeMessage('info-message');
-    
-    const infoDiv = document.createElement('div');
-    infoDiv.className = 'success-message'; // Use success styling for info
-    infoDiv.textContent = message;
-    
-    const previewSection = document.getElementById('previewSection');
-    previewSection.appendChild(infoDiv);
-    
-    setTimeout(() => removeMessage('info-message'), 3000);
-}
-
-function removeMessage(className) {
-    const existingMessage = document.querySelector('.' + className);
-    if (existingMessage) {
-        existingMessage.remove();
-    }
+    setTimeout(() => {
+        if (successDiv.parentNode) {
+            successDiv.remove();
+        }
+    }, 3000);
 }
