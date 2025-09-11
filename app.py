@@ -1,22 +1,26 @@
 import streamlit as st
 import pandas as pd
 from googletrans import Translator
-from camel_tools.tokenizers.word import simple_word_tokenize
+import re
 import io
 
 st.set_page_config(page_title="Arabic Text Fix & Translate", layout="centered")
 
 st.title("📄 Arabic Text Fix & Translate Tool")
-st.write("Upload your Excel file. The tool will process rows M2 to M400, fix Arabic text using CAMeL Tools, translate it to English, and let you download the updated file.")
+st.write("Upload your Excel file. The tool will process rows M2 to M400, fix Arabic text using regex, translate it to English, and let you download the updated file.")
 
 uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
 def is_arabic(text):
     return any('\u0600' <= c <= '\u06FF' for c in str(text))
 
-def fix_arabic_with_camel(text):
-    tokens = simple_word_tokenize(str(text))
-    return ' '.join(tokens)
+def fix_arabic_spacing(text):
+    text = str(text)
+    text = re.sub(r'([^\\s])(/)', r'\\1 /', text)
+    text = re.sub(r'([^\\s])(\\()', r'\\1 (', text)
+    text = re.sub(r'(\\))([^\\s])', r') \\2', text)
+    text = re.sub(r'([ا-ي]{3,})([ا-ي]{3,})', r'\\1 \\2', text)
+    return text
 
 def translate_arabic(text):
     translator = Translator()
@@ -31,7 +35,7 @@ if uploaded_file:
 
     try:
         df_subset = df.iloc[1:400].copy()
-        df_subset['AC'] = df_subset.iloc[:, 12].apply(lambda x: fix_arabic_with_camel(x) if is_arabic(x) else x)
+        df_subset['AC'] = df_subset.iloc[:, 12].apply(lambda x: fix_arabic_spacing(x) if is_arabic(x) else x)
         df_subset['AD'] = df_subset['AC'].apply(lambda x: translate_arabic(x) if is_arabic(x) else x)
 
         df.loc[1:400, 'AC'] = df_subset['AC'].values
