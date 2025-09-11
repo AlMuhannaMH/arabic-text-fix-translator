@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAP Arabic Text Processor</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>SAP Arabic Text Processor</h1>
+            <p class="header__subtitle">Process SAP exports to fix Arabic text spacing and add English translations</p>
+        </header>
+
+        <main class="main">
+            <!-- File Upload Section -->
+            <section class="upload-section">
+                <div class="card">
+                    <div class="card__body">
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">📁</div>
+                            <h3>Upload Excel File</h3>
+                            <p>Drag and drop your SAP Excel export or click to browse</p>
+                            <input type="file" id="fileInput" accept=".xlsx,.xls" class="file-input">
+                            <button type="button" class="btn btn--outline" onclick="document.getElementById('fileInput').click()">
+                                Choose File
+                            </button>
+                        </div>
+                        
+                        <div class="file-info" id="fileInfo" style="display: none;">
+                            <div class="flex items-center gap-8">
+                                <span class="file-icon">📄</span>
+                                <div class="flex-1">
+                                    <div class="file-name" id="fileName"></div>
+                                    <div class="file-size" id="fileSize"></div>
+                                </div>
+                                <button type="button" class="btn btn--sm btn--secondary" onclick="clearFile()">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Processing Configuration Section -->
+            <section class="config-section">
+                <div class="card">
+                    <div class="card__body">
+                        <h3>Processing Configuration</h3>
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label class="form-label">Source Column</label>
+                                <div class="config-value">Column M</div>
+                            </div>
+                            <div class="config-item">
+                                <label class="form-label">Processing Range</label>
+                                <div class="config-value">Rows 2-400</div>
+                            </div>
+                            <div class="config-item">
+                                <label class="form-label">Output - Arabic</label>
+                                <div class="config-value">Column AC</div>
+                            </div>
+                            <div class="config-item">
+                                <label class="form-label">Output - English</label>
+                                <div class="config-value">Column AD</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Process Button and Status -->
+            <section class="process-section">
+                <button type="button" class="btn btn--primary btn--lg btn--full-width" id="processBtn" onclick="processFile()" disabled>
+                    Process File
+                </button>
+                
+                <div class="process-status" id="processStatus" style="display: none;">
+                    <div class="status-indicator">
+                        <div class="spinner" id="spinner" style="display: none;"></div>
+                        <div class="status-text" id="statusText"></div>
+                    </div>
+                    <div class="progress-bar" id="progressBar" style="display: none;">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Download Section -->
+            <section class="download-section" id="downloadSection" style="display: none;">
+                <div class="card">
+                    <div class="card__body">
+                        <div class="download-content">
+                            <div class="download-icon">✅</div>
+                            <h3>Processing Complete!</h3>
+                            <p>Your file has been processed successfully. The corrected Arabic text and English translations have been added.</p>
+                            <button type="button" class="btn btn--primary btn--lg" id="downloadBtn" onclick="downloadProcessedFile()">
+                                Download Processed File
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Instructions Section -->
+            <section class="instructions-section">
+                <div class="card">
+                    <div class="card__body">
+                        <h3>How It Works</h3>
+                        <div class="instructions-grid">
+                            <div class="instruction-item">
+                                <div class="instruction-number">1</div>
+                                <div class="instruction-content">
+                                    <h4>Upload File</h4>
+                                    <p>Upload your SAP Excel export file (.xlsx or .xls format)</p>
+                                </div>
+                            </div>
+                            <div class="instruction-item">
+                                <div class="instruction-number">2</div>
+                                <div class="instruction-content">
+                                    <h4>Process Text</h4>
+                                    <p>The tool will read column M (rows 2-400) and fix Arabic text spacing issues</p>
+                                </div>
+                            </div>
+                            <div class="instruction-item">
+                                <div class="instruction-number">3</div>
+                                <div class="instruction-content">
+                                    <h4>Get Results</h4>
+                                    <p>Download the updated file with corrected Arabic (Column AC) and English translations (Column AD)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
