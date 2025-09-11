@@ -14,12 +14,15 @@ uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 def is_arabic(text):
     return any('\u0600' <= c <= '\u06FF' for c in str(text))
 
+
 def fix_arabic_spacing(text):
     text = str(text)
-    text = re.sub(r'([^\\s])(/)', r'\\1 /', text)
-    text = re.sub(r'([^\\s])(\\()', r'\\1 (', text)
-    text = re.sub(r'(\\))([^\\s])', r') \\2', text)
-    text = re.sub(r'([ا-ي]{3,})([ا-ي]{3,})', r'\\1 \\2', text)
+    # Add space after slashes and parentheses
+    text = re.sub(r'([^\s])(/)', r'\1 /', text)
+    text = re.sub(r'([^\s])(\()', r'\1 (', text)
+    text = re.sub(r'(\))([^\s])', r') \2', text)
+    # Add space between long Arabic segments
+    text = re.sub(r'([ا-ي]{4,})([ا-ي]{4,})', r'\1 \2', text)
     return text
 
 def translate_arabic(text):
