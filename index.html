@@ -3,18 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAP Arabic Text Processor</title>
+    <title>Advanced SAP Arabic Text Processor</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1>SAP Arabic Text Processor</h1>
-            <p class="header__subtitle">Process SAP exports to fix Arabic text spacing and add English translations</p>
+            <h1>Advanced SAP Arabic Text Processor</h1>
+            <p class="header__subtitle">Intelligent Arabic text processing with dynamic translation and advanced NLP</p>
         </header>
 
         <main class="main">
+            <!-- Processing Mode Selection -->
+            <section class="mode-selection-section">
+                <div class="card">
+                    <div class="card__body">
+                        <h3>Processing Mode</h3>
+                        <div class="mode-grid">
+                            <div class="mode-option" data-mode="quick">
+                                <input type="radio" id="mode-quick" name="processing-mode" value="quick" checked>
+                                <label for="mode-quick" class="mode-label">
+                                    <div class="mode-header">
+                                        <h4>Quick Mode</h4>
+                                        <span class="status status--info">Fast</span>
+                                    </div>
+                                    <p>Basic pattern matching + dictionary translation</p>
+                                    <div class="mode-stats">
+                                        <span class="stat">Speed: Fast</span>
+                                        <span class="stat">Accuracy: Good</span>
+                                    </div>
+                                </label>
+                            </div>
+                            
+                            <div class="mode-option" data-mode="smart">
+                                <input type="radio" id="mode-smart" name="processing-mode" value="smart">
+                                <label for="mode-smart" class="mode-label">
+                                    <div class="mode-header">
+                                        <h4>Smart Mode</h4>
+                                        <span class="status status--warning">Medium</span>
+                                    </div>
+                                    <p>Advanced NLP + Google Translate API</p>
+                                    <div class="mode-stats">
+                                        <span class="stat">Speed: Medium</span>
+                                        <span class="stat">Accuracy: Excellent</span>
+                                    </div>
+                                </label>
+                            </div>
+                            
+                            <div class="mode-option" data-mode="hybrid">
+                                <input type="radio" id="mode-hybrid" name="processing-mode" value="hybrid">
+                                <label for="mode-hybrid" class="mode-label">
+                                    <div class="mode-header">
+                                        <h4>Hybrid Mode</h4>
+                                        <span class="status status--success">Best</span>
+                                    </div>
+                                    <p>Combines all methods with confidence scoring</p>
+                                    <div class="mode-stats">
+                                        <span class="stat">Speed: Slower</span>
+                                        <span class="stat">Accuracy: Best</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- API Configuration -->
+            <section class="api-config-section">
+                <div class="card">
+                    <div class="card__body">
+                        <h3>API Configuration</h3>
+                        <div class="config-form">
+                            <div class="form-group">
+                                <label for="google-api-key" class="form-label">
+                                    Google Translate API Key
+                                    <span class="optional">(Optional - enables better translations)</span>
+                                </label>
+                                <input type="password" id="google-api-key" class="form-control" placeholder="Enter your Google Translate API key">
+                                <div class="form-help">
+                                    <small>Your API key is stored locally and never sent to our servers</small>
+                                </div>
+                            </div>
+                            
+                            <div class="config-grid">
+                                <div class="form-group">
+                                    <label for="batch-size" class="form-label">Batch Size</label>
+                                    <select id="batch-size" class="form-control">
+                                        <option value="25">25 items</option>
+                                        <option value="50" selected>50 items</option>
+                                        <option value="100">100 items</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="confidence-threshold" class="form-label">Confidence Threshold</label>
+                                    <select id="confidence-threshold" class="form-control">
+                                        <option value="0.5">Low (0.5)</option>
+                                        <option value="0.7" selected>Medium (0.7)</option>
+                                        <option value="0.9">High (0.9)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- File Upload Section -->
             <section class="upload-section">
                 <div class="card">
@@ -35,6 +131,7 @@
                                 <div class="flex-1">
                                     <div class="file-name" id="fileName"></div>
                                     <div class="file-size" id="fileSize"></div>
+                                    <div class="file-analysis" id="fileAnalysis"></div>
                                 </div>
                                 <button type="button" class="btn btn--sm btn--secondary" onclick="clearFile()">
                                     Remove
@@ -45,8 +142,8 @@
                 </div>
             </section>
 
-            <!-- Processing Configuration Section -->
-            <section class="config-section">
+            <!-- Processing Configuration -->
+            <section class="process-config-section">
                 <div class="card">
                     <div class="card__body">
                         <h3>Processing Configuration</h3>
@@ -68,6 +165,14 @@
                                 <div class="config-value">Column AD</div>
                             </div>
                         </div>
+                        
+                        <div class="recommendation" id="recommendation" style="display: none;">
+                            <div class="recommendation-icon">💡</div>
+                            <div class="recommendation-content">
+                                <h4>Recommended Strategy</h4>
+                                <p id="recommendationText"></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -75,7 +180,7 @@
             <!-- Process Button and Status -->
             <section class="process-section">
                 <button type="button" class="btn btn--primary btn--lg btn--full-width" id="processBtn" onclick="processFile()" disabled>
-                    Process File
+                    Start Processing
                 </button>
                 
                 <div class="process-status" id="processStatus" style="display: none;">
@@ -85,6 +190,70 @@
                     </div>
                     <div class="progress-bar" id="progressBar" style="display: none;">
                         <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="process-details" id="processDetails" style="display: none;">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Processed:</span>
+                                <span class="detail-value" id="processedCount">0</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">High Confidence:</span>
+                                <span class="detail-value" id="highConfidence">0</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">API Calls:</span>
+                                <span class="detail-value" id="apiCalls">0</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Estimated Time:</span>
+                                <span class="detail-value" id="estimatedTime">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Preview -->
+            <section class="preview-section" id="previewSection" style="display: none;">
+                <div class="card">
+                    <div class="card__body">
+                        <div class="preview-header">
+                            <h3>Processing Results Preview</h3>
+                            <div class="preview-stats">
+                                <span class="stat-item">
+                                    <span class="stat-value" id="previewTotalProcessed">0</span>
+                                    <span class="stat-label">Total Processed</span>
+                                </span>
+                                <span class="stat-item">
+                                    <span class="stat-value" id="previewAverageConfidence">0%</span>
+                                    <span class="stat-label">Average Confidence</span>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="preview-table-container">
+                            <div class="preview-table-header">
+                                <div class="table-controls">
+                                    <select id="confidenceFilter" class="form-control form-control-sm">
+                                        <option value="all">All Results</option>
+                                        <option value="high">High Confidence (≥0.9)</option>
+                                        <option value="medium">Medium Confidence (0.7-0.9)</option>
+                                        <option value="low">Low Confidence (<0.7)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="preview-table" id="previewTable"></div>
+                        </div>
+                        
+                        <div class="preview-actions">
+                            <button type="button" class="btn btn--secondary" onclick="editResults()">
+                                Edit Results
+                            </button>
+                            <button type="button" class="btn btn--primary" onclick="proceedToDownload()">
+                                Proceed to Download
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -96,10 +265,37 @@
                         <div class="download-content">
                             <div class="download-icon">✅</div>
                             <h3>Processing Complete!</h3>
-                            <p>Your file has been processed successfully. The corrected Arabic text and English translations have been added.</p>
-                            <button type="button" class="btn btn--primary btn--lg" id="downloadBtn" onclick="downloadProcessedFile()">
-                                Download Processed File
-                            </button>
+                            <p>Your file has been processed successfully with advanced Arabic text processing and translations.</p>
+                            
+                            <div class="download-stats">
+                                <div class="stat-grid">
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="finalProcessedCount">0</span>
+                                        <span class="stat-label">Items Processed</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="finalApiCalls">0</span>
+                                        <span class="stat-label">API Translations</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="finalAvgConfidence">0%</span>
+                                        <span class="stat-label">Average Confidence</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value" id="finalProcessingTime">0s</span>
+                                        <span class="stat-label">Processing Time</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="download-actions">
+                                <button type="button" class="btn btn--primary btn--lg" id="downloadBtn" onclick="downloadProcessedFile()">
+                                    Download Processed File
+                                </button>
+                                <button type="button" class="btn btn--outline" onclick="downloadReport()">
+                                    Download Processing Report
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -114,22 +310,29 @@
                             <div class="instruction-item">
                                 <div class="instruction-number">1</div>
                                 <div class="instruction-content">
-                                    <h4>Upload File</h4>
-                                    <p>Upload your SAP Excel export file (.xlsx or .xls format)</p>
+                                    <h4>Choose Processing Mode</h4>
+                                    <p>Select Quick for speed, Smart for API translations, or Hybrid for best accuracy</p>
                                 </div>
                             </div>
                             <div class="instruction-item">
                                 <div class="instruction-number">2</div>
                                 <div class="instruction-content">
-                                    <h4>Process Text</h4>
-                                    <p>The tool will read column M (rows 2-400) and fix Arabic text spacing issues</p>
+                                    <h4>Configure Settings</h4>
+                                    <p>Optionally add your Google Translate API key and adjust processing parameters</p>
                                 </div>
                             </div>
                             <div class="instruction-item">
                                 <div class="instruction-number">3</div>
                                 <div class="instruction-content">
-                                    <h4>Get Results</h4>
-                                    <p>Download the updated file with corrected Arabic (Column AC) and English translations (Column AD)</p>
+                                    <h4>Upload & Process</h4>
+                                    <p>Upload your SAP Excel file and let our advanced algorithms process the Arabic text</p>
+                                </div>
+                            </div>
+                            <div class="instruction-item">
+                                <div class="instruction-number">4</div>
+                                <div class="instruction-content">
+                                    <h4>Preview & Download</h4>
+                                    <p>Review results with confidence scores, make edits if needed, and download the processed file</p>
                                 </div>
                             </div>
                         </div>
