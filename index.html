@@ -1,261 +1,156 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced SAP Arabic Text Processor</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-</head>
-<body>
-    <div class="container">
-        <header class="header">
-            <h1>Advanced SAP Arabic Text Processor</h1>
-            <p class="header__subtitle">Intelligent Arabic text processing with FREE translation services - No paid APIs required</p>
-            <div class="status-badges">
-                <span class="status status--success">100% Free</span>
-                <span class="status status--info">No API Keys</span>
-                <span class="status status--warning">Offline Capable</span>
-            </div>
-        </header>
-
-        <main class="main">
-            <!-- File Upload Section -->
-            <section class="upload-section">
-                <div class="card">
-                    <div class="card__body">
-                        <div class="upload-area" id="uploadArea">
-                            <div class="upload-icon">📁</div>
-                            <h3>Upload SAP Excel File</h3>
-                            <p>Drag and drop your SAP Excel export or click to browse</p>
-                            <input type="file" id="fileInput" accept=".xlsx,.xls" class="file-input">
-                            <button type="button" class="btn btn--outline" onclick="document.getElementById('fileInput').click()">
-                                Choose File
-                            </button>
-                        </div>
-                        
-                        <div class="file-info" id="fileInfo" style="display: none;">
-                            <div class="flex items-center gap-8">
-                                <span class="file-icon">📄</span>
-                                <div class="flex-1">
-                                    <div class="file-name" id="fileName"></div>
-                                    <div class="file-size" id="fileSize"></div>
-                                </div>
-                                <button type="button" class="btn btn--sm btn--secondary" onclick="clearFile()">
-                                    Remove
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Processing Mode Selection -->
-            <section class="mode-section">
-                <div class="card">
-                    <div class="card__body">
-                        <h3>Processing Mode</h3>
-                        <div class="mode-grid">
-                            <div class="mode-card" data-mode="offline">
-                                <div class="mode-header">
-                                    <div class="mode-icon">🔒</div>
-                                    <h4>Offline Mode</h4>
-                                    <span class="mode-badge speed">Very Fast</span>
-                                </div>
-                                <p>Pure local processing, no internet required</p>
-                                <div class="mode-features">
-                                    <span class="feature">✓ No APIs</span>
-                                    <span class="feature">✓ Privacy</span>
-                                    <span class="feature">✓ Fast</span>
-                                </div>
-                            </div>
-                            
-                            <div class="mode-card active" data-mode="free">
-                                <div class="mode-header">
-                                    <div class="mode-icon">🌐</div>
-                                    <h4>Free API Mode</h4>
-                                    <span class="mode-badge accuracy">Excellent</span>
-                                </div>
-                                <p>Uses free translation services</p>
-                                <div class="mode-features">
-                                    <span class="feature">✓ LibreTranslate</span>
-                                    <span class="feature">✓ MyMemory</span>
-                                    <span class="feature">✓ MS Free Tier</span>
-                                </div>
-                            </div>
-                            
-                            <div class="mode-card" data-mode="hybrid">
-                                <div class="mode-header">
-                                    <div class="mode-icon">⚡</div>
-                                    <h4>Hybrid Mode</h4>
-                                    <span class="mode-badge best">Best</span>
-                                </div>
-                                <p>Local processing + free APIs</p>
-                                <div class="mode-features">
-                                    <span class="feature">✓ Smart Fallback</span>
-                                    <span class="feature">✓ Best Quality</span>
-                                    <span class="feature">✓ Confidence Score</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Translation Services Configuration -->
-            <section class="services-section" id="servicesSection">
-                <div class="card">
-                    <div class="card__body">
-                        <h3>Free Translation Services</h3>
-                        <div class="services-grid">
-                            <div class="service-item">
-                                <div class="service-header">
-                                    <input type="checkbox" id="libretranslate" checked>
-                                    <label for="libretranslate" class="service-name">LibreTranslate</label>
-                                    <span class="service-status online" id="libretranslate-status">●</span>
-                                </div>
-                                <div class="service-details">
-                                    <span class="service-limit">No limits</span>
-                                    <span class="service-cost">100% Free</span>
-                                </div>
-                            </div>
-                            
-                            <div class="service-item">
-                                <div class="service-header">
-                                    <input type="checkbox" id="mymemory" checked>
-                                    <label for="mymemory" class="service-name">MyMemory</label>
-                                    <span class="service-status online" id="mymemory-status">●</span>
-                                </div>
-                                <div class="service-details">
-                                    <span class="service-limit">10K words/day</span>
-                                    <span class="service-cost">Free</span>
-                                </div>
-                            </div>
-                            
-                            <div class="service-item">
-                                <div class="service-header">
-                                    <input type="checkbox" id="microsoft" disabled>
-                                    <label for="microsoft" class="service-name">Microsoft Translator</label>
-                                    <span class="service-status offline" id="microsoft-status">●</span>
-                                </div>
-                                <div class="service-details">
-                                    <span class="service-limit">2M chars/month</span>
-                                    <span class="service-cost">Free (API key needed)</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Custom Dictionary Management -->
-            <section class="dictionary-section">
-                <div class="card">
-                    <div class="card__body">
-                        <div class="dictionary-header">
-                            <h3>Custom Dictionary</h3>
-                            <button type="button" class="btn btn--sm btn--outline" onclick="toggleDictionary()">
-                                <span id="dictionaryToggleText">Show Dictionary</span>
-                            </button>
-                        </div>
-                        
-                        <div class="dictionary-content" id="dictionaryContent" style="display: none;">
-                            <div class="dictionary-stats">
-                                <div class="stat-item">
-                                    <span class="stat-number" id="businessTermsCount">17</span>
-                                    <span class="stat-label">Business Terms</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-number" id="namesCount">8</span>
-                                    <span class="stat-label">Names</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-number" id="locationsCount">5</span>
-                                    <span class="stat-label">Locations</span>
-                                </div>
-                            </div>
-                            
-                            <div class="add-term-form">
-                                <div class="form-row">
-                                    <input type="text" class="form-control" id="arabicTerm" placeholder="Arabic term">
-                                    <input type="text" class="form-control" id="englishTerm" placeholder="English translation">
-                                    <button type="button" class="btn btn--primary" onclick="addCustomTerm()">Add</button>
-                                </div>
-                            </div>
-                            
-                            <div class="dictionary-preview">
-                                <h4>Recent Custom Terms</h4>
-                                <div class="terms-list" id="customTermsList">
-                                    <!-- Custom terms will be displayed here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Process Button and Status -->
-            <section class="process-section">
-                <button type="button" class="btn btn--primary btn--lg btn--full-width" id="processBtn" onclick="processFile()" disabled>
-                    <span class="btn-text">Process File with Smart Arabic Analysis</span>
-                </button>
-                
-                <div class="process-status" id="processStatus" style="display: none;">
-                    <div class="status-indicator">
-                        <div class="spinner" id="spinner" style="display: none;"></div>
-                        <div class="status-text" id="statusText"></div>
-                        <div class="confidence-indicator" id="confidenceIndicator" style="display: none;">
-                            <span class="confidence-label">Confidence:</span>
-                            <span class="confidence-value" id="confidenceValue">0%</span>
-                        </div>
-                    </div>
-                    <div class="progress-container">
-                        <div class="progress-bar" id="progressBar" style="display: none;">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                        <div class="progress-details" id="progressDetails"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Results Review Section -->
-            <section class="review-section" id="reviewSection" style="display: none;">
-                <div class="card">
-                    <div class="card__body">
-                        <h3>Processing Results</h3>
-                        <div class="results-summary" id="resultsSummary">
-                            <!-- Results summary will be displayed here -->
-                        </div>
-                        <div class="results-preview" id="resultsPreview">
-                            <!-- Sample results will be displayed here -->
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Download Section -->
-            <section class="download-section" id="downloadSection" style="display: none;">
-                <div class="card">
-                    <div class="card__body">
-                        <div class="download-content">
-                            <div class="download-icon">✅</div>
-                            <h3>Processing Complete!</h3>
-                            <p>Your file has been processed with intelligent Arabic text analysis and free translations.</p>
-                            <div class="download-buttons">
-                                <button type="button" class="btn btn--primary btn--lg" id="downloadBtn" onclick="downloadProcessedFile()">
-                                    Download Processed File
-                                </button>
-                                <button type="button" class="btn btn--outline btn--lg" onclick="downloadReport()">
-                                    Download Report
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <script src="app.js"></script>
-</body>
-</html>
+<!-- language: html -->    
+<!doctype html>    
+<html lang="ar" dir="rtl">    
+<head>    
+<meta charset="utf-8">    
+<title>Arabic SAP Text Cleaner</title>    
+<style>    
+  body{font-family: Arial, "Noto Naskh Arabic", Tahoma; margin:20px}    
+  textarea{width:100%; height:220px; direction: rtl}    
+  .row{margin:12px 0}    
+  label{display:block; margin-bottom:6px}    
+  table{border-collapse: collapse; width:100%}    
+  th,td{border:1px solid #ccc; padding:6px}    
+</style>    
+</head>    
+<body>    
+<h2>Arabic SAP Text Cleaner</h2>    
+    
+<div class="row">    
+  <label>Paste SAP rows (one per line):</label>    
+  <textarea id="raw"></textarea>    
+</div>    
+    
+<div class="row">    
+  <label>Tokens (space-joiners):</label>    
+  <input id="tokens" style="width:100%" value="شركة, مؤسسة, تموينات, أسواق, بقالة, محطة, فرع, مركز, مطعم, سوق, ثلاجة">    
+</div>    
+    
+<div class="row">    
+  <label>Patterns (regex, comma-separated):</label>    
+  <input id="patterns" style="width:100%" value="CA:\d+,Payment-[A-Z0-9\-]+,SAINMAIN\w+,SANCBK\w+,SARIBL\w+|RIBL\w+,[A-Z]{2,}\d[\w\-]+">    
+</div>    
+    
+<div class="row">    
+  <button onclick="process()">Process</button>    
+  <button onclick="downloadXLSX()">Download XLSX</button>    
+  <button onclick="downloadCSV()">Download CSV</button>    
+</div>    
+    
+<div class="row">    
+  <table id="out"><thead></thead><tbody></tbody></table>    
+</div>    
+    
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>    
+<script>    
+const norm = (s, opts={alef:true, tatweel:true, ya:false})=>{    
+  if (!s) return '';    
+  let t = s;    
+  if (opts.tatweel) t = t.replace(/ـ/g,'');    
+  if (opts.alef)    t = t.replace(/[إأآا]/g,'ا');    
+  if (opts.ya){ t = t.replace(/ى/g,'ي').replace(/ئ/g,'ي'); }    
+  t = t.replace(/ؤ/g,'و');    
+  return t.trim();    
+};    
+const smartSpace = (s, toks=[])=>{    
+  let t = s;    
+  toks.forEach(tok=>{    
+    const re = new RegExp(tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'); // escape    
+    t = t.replace(re, ' ' + tok + ' ');    
+  });    
+  return t.split(/\s+/).filter(Boolean).join(' ');    
+};    
+const extract = (raw, patterns)=>{    
+  // time    
+  const m = raw.match(/^\((\d{2}):(\d{2})\)/);    
+  let time = null, after = raw;    
+  if (m){ time = `${m[1]}:${m[2]}`; after = raw.slice(m[0].length); }    
+  // codes    
+  let codes = [];    
+  patterns.forEach(p=>{    
+    try{    
+      const re = new RegExp(p,'g');    
+      const found = after.match(re);    
+      if (found) codes = codes.concat(found);    
+      after = after.replace(re, '');    
+    }catch(e){}    
+  });    
+  codes = [...new Set(codes)];    
+  return { time, text: after.trim(), codes };    
+};    
+    
+let rows = [];    
+function process(){    
+  const raw = document.getElementById('raw').value || '';    
+  const toks = document.getElementById('tokens').value.split(',').map(x=>x.trim()).filter(Boolean);    
+  const pats = document.getElementById('patterns').value.split(',').map(x=>x.trim()).filter(Boolean);    
+    
+  rows = [];    
+  raw.split(/\r?\n/).forEach(line=>{    
+    line = line.trim();    
+    if(!line) return;    
+    const {time, text, codes} = extract(line, pats);    
+    let parts = text.split('/').map(s=>s.trim()).filter(Boolean);    
+    let partsNorm = parts.map(p=> smartSpace(norm(p), toks));    
+    const normalizedName = partsNorm.join(' / ');    
+    const hasPayment = partsNorm.some(p=> p.includes('Payment'));    
+    const tooShort = partsNorm.some(p=> p.length < 3);    
+    const flag = !time ? 'NoTime' : hasPayment ? 'CodeResidue' : (tooShort ? 'ShortPart' : '');    
+    rows.push({    
+      Time: time || '',    
+      Name1: partsNorm[0] || '',    
+      Name2: partsNorm[1] || '',    
+      Name3: partsNorm[2] || '',    
+      Codes: codes.join(' | '),    
+      Text: line,    
+      NormalizedName: normalizedName,    
+      Flag: flag    
+    });    
+  });    
+  render(rows);    
+}    
+    
+function render(data){    
+  const th = document.querySelector('#out thead');    
+  const tb = document.querySelector('#out tbody');    
+  th.innerHTML = '';    
+  tb.innerHTML = '';    
+  if(!data.length) return;    
+  const cols = Object.keys(data[0]);    
+  th.innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';    
+  data.forEach(r=>{    
+    const tr = document.createElement('tr');    
+    cols.forEach(c=>{    
+      const td = document.createElement('td');    
+      td.textContent = (r[c]==null?'':r[c]);    
+      tr.appendChild(td);    
+    });    
+    tb.appendChild(tr);    
+  });    
+}    
+    
+function downloadXLSX(){    
+  if(!rows.length) return;    
+  const ws = XLSX.utils.json_to_sheet(rows);    
+  const wb = XLSX.utils.book_new();    
+  XLSX.utils.book_append_sheet(wb, ws, 'Output');    
+  XLSX.writeFile(wb, 'Output_cleaned.xlsx');    
+}    
+function downloadCSV(){    
+  if(!rows.length) return;    
+  const cols = Object.keys(rows[0]);    
+  const csv = [cols.join(',')].concat(    
+    rows.map(r=> cols.map(c=>{    
+      const v = (r[c]==null?'':String(r[c])).replace(/"/g,'""');    
+      return `"${v}"`;    
+    }).join(','))    
+  ).join('\r\n');    
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});    
+  const a = document.createElement('a');    
+  a.href = URL.createObjectURL(blob);    
+  a.download = 'Output_cleaned.csv';    
+  a.click();    
+}    
+</script>    
+</body>    
+</html>    
