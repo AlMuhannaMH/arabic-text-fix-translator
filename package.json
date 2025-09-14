@@ -1,0 +1,49 @@
+{
+  "name": "arabic-text-processor",
+  "version": "1.0.0",
+  "description": "A comprehensive web application for processing and analyzing Arabic text with timestamps and mixed content",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx live-server .",
+    "build": "echo 'No build process needed for static site'",
+    "test": "echo 'No tests specified'",
+    "deploy:netlify": "npx netlify deploy --prod --dir .",
+    "deploy:github": "gh-pages -d ."
+  },
+  "keywords": [
+    "arabic",
+    "text-processing",
+    "nlp",
+    "javascript",
+    "web-app",
+    "unicode",
+    "regex",
+    "data-extraction",
+    "github-pages",
+    "netlify"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/arabic-text-processor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/arabic-text-processor/issues"
+  },
+  "homepage": "https://yourusername.github.io/arabic-text-processor/",
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "browserslist": [
+    "last 3 versions",
+    "> 1%",
+    "not dead"
+  ]
+}

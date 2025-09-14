@@ -1,229 +1,170 @@
-<!-- language: html -->    
-<!doctype html>    
-<html lang="ar" dir="rtl">    
-<head>    
-<meta charset="utf-8">    
-<title>Arabic SAP Text Cleaner (Dynamic)</title>    
-<meta name="viewport" content="width=device-width, initial-scale=1">    
-<style>    
-  :root{    
-    --fg:#1b1b1b; --muted:#666; --bg:#fff; --b:#ddd; --acc:#0a7ac4;    
-  }    
-  html,body{margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: Arial, "Noto Naskh Arabic", Tahoma, sans-serif;}    
-  .wrap{max-width:1100px; margin:24px auto; padding:0 16px;}    
-  h2{margin:0 0 12px 0;}    
-  .row{margin:14px 0;}    
-  label{display:block; margin-bottom:6px; font-weight:600;}    
-  textarea{width:100%; height:260px; box-sizing:border-box; padding:10px; border:1px solid var(--b); border-radius:6px; direction: rtl; line-height:1.6;}    
-  input[type=text]{width:100%; box-sizing:border-box; padding:8px; border:1px solid var(--b); border-radius:6px;}    
-  .controls button{margin-inline-end:8px; margin-bottom:8px; padding:8px 14px; border:1px solid var(--b); border-radius:6px; background:#f7f7f7; cursor:pointer}    
-  .controls button.primary{background:var(--acc); color:#fff; border-color:var(--acc)}    
-  .controls .note{color:var(--muted); font-size:12px; margin-inline-start:8px;}    
-  table{width:100%; border-collapse: collapse; direction: rtl;}    
-  th, td{border:1px solid var(--b); padding:6px 8px; vertical-align:top; text-align:right; font-size:13px;}    
-  th{background:#f2f6fb;}    
-  .grid{overflow:auto; max-height:420px; border:1px solid var(--b); border-radius:6px;}    
-  .footer{color:var(--muted); font-size:12px; margin-top:10px;}    
-  .opt{display:flex; gap:8px; flex-wrap:wrap; align-items:center; color:var(--muted); font-size:12px;}    
-  .opt label{font-weight:400; margin:0;}    
-  .opt input{width:auto;}    
-</style>    
-</head>    
-<body>    
-<div class="wrap">    
-  <h2>Arabic SAP Text Cleaner (Dynamic)</h2>    
-    
-  <div class="row">    
-    <label>Paste SAP rows (one per line):</label>    
-    <textarea id="raw" placeholder="مثال:&#10;(06:51)شركةأسواقومخابزال/شركةأسواقومخابزالمختار&#10;(03:07)طارقعبداللهابراهيم/طارقعبداللهابراهيمالس"></textarea>    
-  </div>    
-    
-  <div class="row">    
-    <label>Reference patterns (regex, comma-separated). These are bank/payment codes to extract and strip, not Arabic words.</label>    
-    <input id="patterns" type="text"    
-      value="CA:\d+,Payment-[A-Z0-9\-]+,SA[A-Z]+[A-Z0-9]+,RIBL[A-Z0-9]+,NCBK[0-9A-Z\-]+"    
-    />    
-    <div class="opt">    
-      <label><input type="checkbox" id="optTatweel" checked> Remove tatweel (ـ)</label>    
-      <label><input type="checkbox" id="optAlef" checked> Normalize Alef (إ/أ/آ/ا → ا)</label>    
-      <label><input type="checkbox" id="optYa"> Normalize ى/ئ → ي (and ؤ → و)</label>    
-    </div>    
-  </div>    
-    
-  <div class="row controls">    
-    <button class="primary" onclick="process()">Process</button>    
-    <button onclick="downloadXLSX()">Download XLSX</button>    
-    <button onclick="downloadCSV()">Download CSV</button>    
-    <span class="note">No data is sent to any server. All processing is in your browser.</span>    
-  </div>    
-    
-  <div class="row grid">    
-    <table id="out"><thead></thead><tbody></tbody></table>    
-  </div>    
-    
-  <div class="footer">    
-    Columns: Time, Name1, Name2, Name3, Codes, Text, NormalizedName, Flag. Direction is RTL for readability.    
-  </div>    
-</div>    
-    
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>    
-<script>    
-// -------- Normalization (dictionary-free) --------    
-const norm = (s, opts={alef:true, tatweel:true, ya:false})=>{    
-  if (!s) return '';    
-  let t = s;    
-  if (opts.tatweel) t = t.replace(/ـ/g,'');    
-  if (opts.alef)    t = t.replace(/[إأآا]/g,'ا');    
-  if (opts.ya){ t = t.replace(/ى/g,'ي').replace(/ئ/g,'ي'); }    
-  t = t.replace(/ؤ/g,'و');    
-  return t.trim();    
-};    
-    
-// -------- Dynamic heuristic Arabic spacing (no static word list) --------    
-const smartSpaceDynamic = (s)=>{    
-  let t = s;    
-    
-  // 1) Space before "ال" if glued to a preceding Arabic letter (نهلةالوادي -> نهلة الوادي)    
-  t = t.replace(/([ء-ي])ال(?=[ء-ي])/g, '$1 ال');    
-    
-  // 2) Insert space before prepositional "لل/لـ/لم/له/لت/للـ" when glued to previous token and followed by letters    
-  t = t.replace(/(?<=\S)(لل|لـ|لم|له|لت|للـ)(?=[ء-ي])/g, ' $1');    
-    
-  // 3) Ensure a space after "لـ" if glued to next token    
-  t = t.replace(/لـ(?=\S)/g, 'لـ ');    
-    
-  // 4) Generic person connectors (minimal, pattern-based)    
-  // e.g., "عبدالله" -> "عبد الله", "ابنزيد" -> "ابن زيد"    
-  t = t.replace(/(عبدال|عبد|ابن|بن|بنت|أبو|ابو|أم|ام)(?=[ء-ي])/g, '$1 ');    
-    
-  // 5) Split internal "...ال..." inside longer glued tokens (الخليجيةالتجار -> الخليجية التجار)    
-  t = t.replace(/([ء-ي]{2,})ال(?=[ء-ي]{2,})/g, '$1 ال');    
-    
-  // 6) Fix artifact "ال <letter>" back to "ال<letter>"    
-  t = t.replace(/ال\s+([ء-ي])/g, 'ال$1');    
-    
-  // 7) Collapse spaces    
-  t = t.replace(/\s{2,}/g,' ').trim();    
-    
-  return t;    
-};    
-    
-// -------- Extract time and reference codes --------    
-const extract = (raw, patterns)=>{    
-  // Time at start like "(06:51)"    
-  const m = raw.match(/^\((\d{2}):(\d{2})\)/);    
-  let time = null, after = raw;    
-  if (m){ time = `${m[1]}:${m[2]}`; after = raw.slice(m[0].length); }    
-    
-  // Codes: apply each regex, collect matches, and strip from text    
-  let codes = [];    
-  patterns.forEach(p=>{    
-    try{    
-      const re = new RegExp(p,'g');    
-      const found = after.match(re);    
-      if (found) codes = codes.concat(found);    
-      after = after.replace(re, '');    
-    }catch(e){    
-      // ignore invalid regex    
-    }    
-  });    
-  codes = [...new Set(codes)];    
-  return { time, text: after.trim(), codes };    
-};    
-    
-// -------- Pipeline --------    
-let rows = [];    
-    
-function process(){    
-  const raw = document.getElementById('raw').value || '';    
-  const pats = (document.getElementById('patterns').value || '')    
-                 .split(',')    
-                 .map(x=>x.trim())    
-                 .filter(Boolean);    
-    
-  const optTatweel = document.getElementById('optTatweel').checked;    
-  const optAlef    = document.getElementById('optAlef').checked;    
-  const optYa      = document.getElementById('optYa').checked;    
-    
-  rows = [];    
-  raw.split(/\r?\n/).forEach(line=>{    
-    line = line.trim();    
-    if(!line) return;    
-    
-    const {time, text, codes} = extract(line, pats);    
-    
-    // Split by "/" AFTER removing codes/time    
-    let parts = text.split('/').map(s=>s.trim()).filter(Boolean);    
-    
-    // Normalize then apply dynamic spacing    
-    let partsNorm = parts.map(p => smartSpaceDynamic(norm(p, {alef:optAlef, tatweel:optTatweel, ya:optYa})));    
-    
-    const normalizedName = partsNorm.join(' / ');    
-    
-    const hasPayment = partsNorm.some(p=> /Payment/i.test(p));    
-    const tooShort   = partsNorm.some(p=> p.length > 0 && p.length < 3);    
-    const flag = !time ? 'NoTime' : hasPayment ? 'CodeResidue' : (tooShort ? 'ShortPart' : '');    
-    
-    rows.push({    
-      Time: time || '',    
-      Name1: partsNorm[0] || '',    
-      Name2: partsNorm[1] || '',    
-      Name3: partsNorm[2] || '',    
-      Codes: codes.join(' | '),    
-      Text: line,    
-      NormalizedName: normalizedName,    
-      Flag: flag    
-    });    
-  });    
-    
-  render(rows);    
-}    
-    
-function render(data){    
-  const th = document.querySelector('#out thead');    
-  const tb = document.querySelector('#out tbody');    
-  th.innerHTML = '';    
-  tb.innerHTML = '';    
-  if(!data.length) return;    
-  const cols = Object.keys(data[0]);    
-  th.innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';    
-  data.forEach(r=>{    
-    const tr = document.createElement('tr');    
-    cols.forEach(c=>{    
-      const td = document.createElement('td');    
-      td.textContent = (r[c]==null?'':r[c]);    
-      tr.appendChild(td);    
-    });    
-    tb.appendChild(tr);    
-  });    
-}    
-    
-// -------- Export helpers --------    
-function downloadXLSX(){    
-  if(!rows.length) return;    
-  const ws = XLSX.utils.json_to_sheet(rows);    
-  // Slight RTL visual help in Excel: set sheet to RTL (not fully supported by XLSX utils),    
-  // users can also set Right-to-Left view in Excel after opening.    
-  const wb = XLSX.utils.book_new();    
-  XLSX.utils.book_append_sheet(wb, ws, 'Output');    
-  XLSX.writeFile(wb, 'Output_cleaned.xlsx');    
-}    
-    
-function downloadCSV(){    
-  if(!rows.length) return;    
-  const cols = Object.keys(rows[0]);    
-  const csv = [cols.join(',')].concat(    
-    rows.map(r=> cols.map(c=>{    
-      const v = (r[c]==null?'':String(r[c])).replace(/"/g,'""');    
-      return `"${v}"`;    
-    }).join(','))    
-  ).join('\r\n');    
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});    
-  const a = document.createElement('a');    
-  a.href = URL.createObjectURL(blob);    
-  a.download = 'Output_cleaned.csv';    
-  a.click();    
-}    
-</script>    
-</body>    
-</html>    
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معالج النصوص العربية - Arabic Text Processor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>معالج النصوص العربية</h1>
+            <h2>Arabic Text Processor</h2>
+            <p>تطبيق شامل لمعالجة وتحليل النصوص العربية - Comprehensive Arabic text processing application</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Input Section -->
+            <section class="input-section card">
+                <div class="card__body">
+                    <h3>النص المدخل - Input Text</h3>
+                    <div class="input-controls">
+                        <div class="line-counter">
+                            <span>عدد الأسطر - Lines: <span id="lineCount">0</span></span>
+                        </div>
+                    </div>
+                    <textarea 
+                        id="inputText" 
+                        class="form-control input-textarea" 
+                        placeholder="الصق النص هنا... Paste your text here..."
+                        rows="15"
+                    ></textarea>
+                    <div class="input-actions">
+                        <button class="btn btn--primary" id="loadSample">
+                            تحميل عينة - Load Sample
+                        </button>
+                        <button class="btn btn--outline" id="clearInput">
+                            مسح - Clear
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Processing Options Section -->
+            <section class="options-section card">
+                <div class="card__body">
+                    <h3>خيارات المعالجة - Processing Options</h3>
+                    <div class="options-grid">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="extractTimestamps" checked>
+                            <span class="checkbox-text">فصل الطوابع الزمنية - Extract Timestamps</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="separateArabicText" checked>
+                            <span class="checkbox-text">فصل النص العربي - Separate Arabic Text</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="extractEnglishCodes">
+                            <span class="checkbox-text">فصل الأكواد الإنجليزية - Extract English Codes</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="cleanText">
+                            <span class="checkbox-text">تنظيف النص - Clean Text</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="showStatistics" checked>
+                            <span class="checkbox-text">إظهار الإحصائيات - Show Statistics</span>
+                        </label>
+                    </div>
+                    <div class="process-actions">
+                        <button class="btn btn--primary btn--lg" id="processButton">
+                            معالجة - Process <span class="shortcut">(Ctrl+Enter)</span>
+                        </button>
+                        <div class="auto-process">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoProcess">
+                                <span class="checkbox-text">معالجة تلقائية - Auto Process</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Output Section -->
+            <section class="output-section card" id="outputSection" style="display: none;">
+                <div class="card__body">
+                    <div class="output-header">
+                        <h3>النتائج - Results</h3>
+                        <div class="export-actions">
+                            <button class="btn btn--secondary btn--sm" id="exportCSV">
+                                تصدير CSV - Export CSV
+                            </button>
+                            <button class="btn btn--secondary btn--sm" id="exportJSON">
+                                تصدير JSON - Export JSON
+                            </button>
+                            <button class="btn btn--outline btn--sm" id="copyResults">
+                                نسخ - Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Panel -->
+                    <div class="statistics-panel" id="statisticsPanel" style="display: none;">
+                        <h4>الإحصائيات - Statistics</h4>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-label">إجمالي الأسطر - Total Lines:</span>
+                                <span class="stat-value" id="totalLines">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">الإدخالات الموقوتة - Timestamped Entries:</span>
+                                <span class="stat-value" id="timestampedEntries">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">النصوص العربية - Arabic Segments:</span>
+                                <span class="stat-value" id="arabicSegments">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">الأكواد المستخرجة - Extracted Codes:</span>
+                                <span class="stat-value" id="extractedCodes">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Table -->
+                    <div class="table-container">
+                        <div class="table-wrapper">
+                            <table class="results-table" id="resultsTable">
+                                <thead>
+                                    <tr>
+                                        <th>الرقم<br>Number</th>
+                                        <th>الوقت<br>Time</th>
+                                        <th>النص العربي الأول<br>First Arabic Text</th>
+                                        <th>النص العربي الثاني<br>Second Arabic Text</th>
+                                        <th>الأكواد<br>Codes</th>
+                                        <th>الملاحظات<br>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Processing Status -->
+                    <div class="processing-status" id="processingStatus">
+                        <div class="status-message"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>© 2025 معالج النصوص العربية - تم التطوير لمعالجة النصوص العربية المختلطة</p>
+            <p>GitHub Pages + Netlify Compatible</p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <p>جاري المعالجة... Processing...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
